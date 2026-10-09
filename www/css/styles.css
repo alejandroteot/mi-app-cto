@@ -1,0 +1,14 @@
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; font: 15px system-ui, sans-serif; color: #1b1f24; }
+body { display: flex; flex-direction: column; }
+header { display: flex; gap: 6px; padding: 8px; background: #fff; border-bottom: 1px solid #d5d9e0; flex-wrap: wrap; align-items: center; }
+h1 { font-size: 16px; margin: 0 auto 0 4px; }
+button, input, select { font: inherit; border: 1px solid #d5d9e0; border-radius: 8px; padding: 7px 10px; background: #fff; }
+button.on { background: #0b6bcb; color: #fff; }
+#map { flex: 1; min-height: 200px; }
+#panel { background: #fff; border-top: 1px solid #d5d9e0; max-height: 52vh; overflow: auto; padding: 10px; display: none; }
+.row { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.row > * { flex: 1; min-width: 90px; }
+.port { display: grid; grid-template-columns: 30px 92px 1fr 66px; gap: 5px; margin-bottom: 5px; align-items: center; border-left: 4px solid #1a9d55; padding-left: 4px; }
+.port.ocupado { border-left-color: #d6402f; }
+.pin { width: 30px; height: 30px; border-radius: 50%; color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 1px 4px #0006; }
