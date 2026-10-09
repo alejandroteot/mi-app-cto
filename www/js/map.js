@@ -32,17 +32,15 @@ export function initMap(onMapClick) {
   return map;
 }
 
-export function toggleSatelliteLayer() {
-  const on = map.getLayoutProperty('sat', 'visibility') === 'none';
-  map.setLayoutProperty('sat', 'visibility', on ? 'visible' : 'none');
-}
-
-export function renderMarkers(ctos, selectedId, onSelectCto) {
+export function renderMarkers(ctos, selectedId, onSelectCto, userRole) {
   Object.values(markers).forEach(m => m.remove());
   markers = {};
 
+  const isMaster = userRole === 'maestro';
+
   Object.values(ctos).forEach(c => {
-    const libres = c.ports.filter(p => p.estado === 'libre').length;
+    const ports = c.ports || [];
+    const libres = ports.filter(p => p.estado === 'libre').length;
     const el = document.createElement('div');
     el.className = 'pin';
     el.textContent = libres;
@@ -53,16 +51,18 @@ export function renderMarkers(ctos, selectedId, onSelectCto) {
       onSelectCto(c.id);
     };
 
-    const mk = new maplibregl.Marker({ element: el, draggable: c.id === selectedId })
+    const mk = new maplibregl.Marker({ element: el, draggable: isMaster && c.id === selectedId })
       .setLngLat([c.lng, c.lat])
       .addTo(map);
 
-    mk.on('dragend', async () => {
-      const p = mk.getLngLat();
-      c.lat = p.lat;
-      c.lng = p.lng;
-      await saveCto(c);
-    });
+    if (isMaster) {
+      mk.on('dragend', async () => {
+        const p = mk.getLngLat();
+        c.lat = p.lat;
+        c.lng = p.lng;
+        await saveCto(c);
+      });
+    }
 
     markers[c.id] = mk;
   });

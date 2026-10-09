@@ -8,12 +8,29 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <header id="hd">
+  <div id="login-screen">
+    <div class="login-card">
+      <h2>SIDISI</h2>
+      <p>Control de Acceso Técnico</p>
+      <form id="login-form">
+        <input type="text" id="login-user" placeholder="Usuario o Email" required autocomplete="username">
+        <input type="password" id="login-pass" placeholder="Contraseña" required autocomplete="current-password">
+        <button type="submit" id="login-btn">Ingresar</button>
+      </form>
+      <div id="login-error"></div>
+    </div>
+  </div>
+
+  <header id="hd" style="display:none">
     <h1>SIDISI</h1>
-    <button id="add">+ CTO</button>
+    <div class="user-info">
+      <span id="user-role-badge"></span>
+      <button id="logout-btn">Salir</button>
+    </div>
+    <button id="add" style="display:none">+ CTO</button>
   </header>
 
-  <div id="map"></div>
+  <div id="map" style="display:none"></div>
   <div id="panel"></div>
 
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>

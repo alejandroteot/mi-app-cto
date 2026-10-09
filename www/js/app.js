@@ -1,16 +1,17 @@
 import { $, createDefaultPorts } from './config.js';
-import { fetchCtos, insertCto, saveCto } from './supabase.js';
-import { initMap, toggleSatelliteLayer, renderMarkers } from './map.js';
-import { renderPanel, exportCsv } from './ui.js';
+import { fetchCtos, insertCto, saveCto, loginUser, getCurrentSession, logoutUser } from './supabase.js';
+import { initMap, renderMarkers } from './map.js';
+import { renderPanel } from './ui.js';
 
 let ctos = {};
 let sel = null;
 let mode = null;
+let currentSession = null;
 
 const stateManager = {
   refreshUI() {
-    renderMarkers(ctos, sel, onSelectCto);
-    renderPanel(ctos, sel, stateManager);
+    renderMarkers(ctos, sel, onSelectCto, currentSession?.role);
+    renderPanel(ctos, sel, stateManager, currentSession?.role);
   },
   setSelected(id) {
     sel = id;
@@ -27,7 +28,7 @@ function onSelectCto(id) {
 }
 
 async function handleMapClick(e) {
-  if (!mode) return;
+  if (!mode || currentSession?.role !== 'maestro') return;
 
   if (mode === 'move' && ctos[sel]) {
     ctos[sel].lat = e.lngLat.lat;
@@ -50,26 +51,73 @@ async function handleMapClick(e) {
   }
 
   mode = null;
-  if ($('add')) $('add').classList.remove('on');
+  if ($('add'))$('add').classList.remove('on');
   stateManager.refreshUI();
 }
 
-async function start() {
+async function initApp() {
+  if ($('login-screen'))$('login-screen').style.display = 'none';
+  if ($('hd'))$('hd').style.display = 'flex';
+  if ($('map'))$('map').style.display = 'block';
+
+  if ($('user-role-badge'))$('user-role-badge').textContent = currentSession?.role || '';
+
+  if (currentSession?.role === 'maestro') {
+    if ($('add')) {
+      $('add').style.display = 'inline-block';$('add').onclick = () => {
+        mode = mode === 'add' ? null : 'add';
+        $('add').classList.toggle('on', !!mode);
+      };
+    }
+  } else {
+    if ($('add'))$('add').style.display = 'none';
+  }
+
   initMap(handleMapClick);
 
-  if ($('add')) {
-    $('add').onclick = () => {
-      mode = mode === 'add' ? null : 'add';
-      $('add').classList.toggle('on', !!mode);
+  const data = await fetchCtos();
+  data.forEach(c => { if (c?.id) ctos[c.id] = c; });
+  stateManager.refreshUI();
+}
+
+function setupAuth() {
+  const session = getCurrentSession();
+  if (session) {
+    currentSession = session;
+    initApp();
+  } else {
+    if ($('login-screen'))$('login-screen').style.display = 'flex';
+    if ($('hd'))$('hd').style.display = 'none';
+    if ($('map'))$('map').style.display = 'none';
+  }
+
+  if ($('login-form')) {$('login-form').onsubmit = async e => {
+      e.preventDefault();
+      const u = $('login-user')?.value || '';
+      const p = $('login-pass')?.value || '';
+      if ($('login-error'))$('login-error').style.display = 'none';
+
+      const res = await loginUser(u, p);
+      if (res.ok) {
+        currentSession = res.session;
+        initApp();
+      } else {
+        if ($('login-error')) {$('login-error').textContent = res.message;
+          $('login-error').style.display = 'block';
+        }
+      }
     };
   }
 
-  if ($('sat')) $('sat').onclick = toggleSatelliteLayer;
-  if ($('csv')) $('csv').onclick = () => exportCsv(ctos);
-
-  const data = await fetchCtos();
-  data.forEach(c => ctos[c.id] = c);
-  stateManager.refreshUI();
+  if ($('logout-btn')) {$('logout-btn').onclick = async () => {
+      await logoutUser();
+      location.reload();
+    };
+  }
 }
 
-start();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupAuth);
+} else {
+  setupAuth();
+}

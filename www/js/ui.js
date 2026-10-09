@@ -5,6 +5,8 @@ export function renderPanel(ctos, selectedId, stateManager, userRole) {
   const c = ctos[selectedId];
   const p = $('panel');
 
+  if (!p) return;
+
   if (!c) {
     p.style.display = 'none';
     return;
@@ -33,9 +35,9 @@ export function renderPanel(ctos, selectedId, stateManager, userRole) {
     </div>
   `;
 
-  $('sp').value = String(c.ports.length);
+  if ($('sp'))$('sp').value = String((c.ports || []).length);
 
-  c.ports.forEach(pt => {
+  (c.ports || []).forEach(pt => {
     const d = document.createElement('div');
     d.className = 'port ' + pt.estado;
     d.innerHTML = `
@@ -68,23 +70,25 @@ export function renderPanel(ctos, selectedId, stateManager, userRole) {
       stateManager.refreshUI();
     };
 
-    $('ps').appendChild(d);
+    if ($('ps'))$('ps').appendChild(d);
   });
 
   if (isMaster) {
-    $('n').onchange = e => { c.nombre = e.target.value; saveCto(c); };
-    $('fib').onchange = e => { c.fibra = e.target.value; saveCto(c); };$('nt').onchange = e => { c.notas = e.target.value; saveCto(c); };
+    if ($('n'))$('n').onchange = e => { c.nombre = e.target.value; saveCto(c); };
+    if ($('fib'))$('fib').onchange = e => { c.fibra = e.target.value; saveCto(c); };
+    if ($('nt'))$('nt').onchange = e => { c.notas = e.target.value; saveCto(c); };
 
-    $('sp').onchange = e => {
-      const n = +e.target.value;
-      if (n < c.ports.length && c.ports.slice(n).some(x => x.cliente) && !confirm('Hay clientes en los puertos que se quitan. ¿Seguir?')) {
-        e.target.value = c.ports.length;
-        return;
-      }
-      c.ports = n > c.ports.length ? c.ports.concat(createDefaultPorts(n).slice(c.ports.length)) : c.ports.slice(0, n);
-      saveCto(c);
-      stateManager.refreshUI();
-    };
+    if ($('sp')) {$('sp').onchange = e => {
+        const n = +e.target.value;
+        if (n < c.ports.length && c.ports.slice(n).some(x => x.cliente) && !confirm('Hay clientes en los puertos que se quitan. ¿Seguir?')) {
+          e.target.value = c.ports.length;
+          return;
+        }
+        c.ports = n > c.ports.length ? c.ports.concat(createDefaultPorts(n).slice(c.ports.length)) : c.ports.slice(0, n);
+        saveCto(c);
+        stateManager.refreshUI();
+      };
+    }
 
     if ($('mv')) {$('mv').onclick = () => {
         stateManager.setMode('move');
@@ -104,7 +108,8 @@ export function renderPanel(ctos, selectedId, stateManager, userRole) {
     }
   }
 
-  $('cl').onclick = () => {
-    stateManager.setSelected(null);
-  };
+  if ($('cl')) {$('cl').onclick = () => {
+      stateManager.setSelected(null);
+    };
+  }
 }
