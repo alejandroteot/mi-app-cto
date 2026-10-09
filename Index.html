@@ -16,25 +16,24 @@ button.on{background:#0b6bcb;color:#fff}
 .port{display:grid;grid-template-columns:30px 92px 1fr 66px;gap:5px;margin-bottom:5px;align-items:center;border-left:4px solid #1a9d55;padding-left:4px}
 .port.ocupado{border-left-color:#d6402f}
 .pin{width:30px;height:30px;border-radius:50%;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px #0006}
-#setup{padding:16px;display:none}#setup input{width:100%;margin:6px 0}
 </style></head><body>
-<div id="setup"><h2>Conectar con Supabase</h2>
-<p>Pegá los datos de Supabase (Project Settings → API).</p>
-<input id="u" placeholder="Project URL (https://qcsvnjzhmovpcushgeyv.supabase.co/rest/v1/)"><input id="k" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjc3ZuanpobW92cGN1c2hnZXl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NDUwNDQsImV4cCI6MjEwNzEyMTA0NH0.LEj1TnngvyTBZXWga5-Ipm2KIrZ5C3EBnLXWKEl15VM">
-<button id="go" class="on">Guardar</button></div>
+
 <header id="hd" style="display:none"><h1>Mapa FTTH</h1><button id="add">+ CTO</button><button id="sat">Satélite</button><button id="csv">CSV</button></header>
 <div id="map" style="display:none"></div><div id="panel"></div>
+
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
-const url = 'https://qcsvnjzh.supabase.co';
+let sb,map,ctos={},markers={},sel=null,mode=null;
+
+// Credenciales fijas de acceso directo
+const url = 'https://qcsvnjzhmovpcushgeyv.supabase.com';
 const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjc3ZuanpobW92cGN1c2hnZXl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NDUwNDQsImV4cCI6MjEwNzEyMTA0NH0.LEj1TnngvyTBZXWga5-Ipm2KIrZ5C3EBnLXWKEl15VM';
 
 start();
-  
-else start();
+
 async function start(){
   $('hd').style.display='flex';$('map').style.display='block';
   sb=supabase.createClient(url,key);
@@ -51,8 +50,7 @@ async function start(){
     mode=null;$('add').classList.remove('on');draw();openPanel();
   });
   $('add').onclick=()=>{mode=mode?null:'add';$('add').classList.toggle('on',!!mode)};
-  $('sat').onclick=()=>{const on=map.getLayoutProperty('sat','visibility')==='none';map.setLayoutProperty('sat','visibility',on?'visible':'none')};
-  $('csv').onclick=exportCsv;
+  $('sat').onclick=()=>{const on=map.getLayoutProperty('sat','visibility')==='none';map.setLayoutProperty('sat','visibility',on?'visible':'none')};$('csv').onclick=exportCsv;
   const {data,error}=await sb.from('ctos').select('*');
   if(error){alert('Error: '+error.message);return}
   data.forEach(c=>ctos[c.id]=c);draw();
@@ -87,14 +85,11 @@ function openPanel(){
     pw.onchange=()=>{pt.potencia=pw.value;save(c)};
     $('ps').appendChild(d);
   });
-  $('n').onchange=e=>{c.nombre=e.target.value;save(c)};
-  $('fib').onchange=e=>{c.fibra=e.target.value;save(c)};
-  $('nt').onchange=e=>{c.notas=e.target.value;save(c)};
-  $('sp').onchange=e=>{const n=+e.target.value;if(n<c.ports.length&&c.ports.slice(n).some(x=>x.cliente)&&!confirm('Hay clientes en los puertos que se quitan. ¿Seguir?')){e.target.value=c.ports.length;return}
+  $('n').onchange=e=>{c.nombre=e.target.value;save(c)};$('fib').onchange=e=>{c.fibra=e.target.value;save(c)};
+  $('nt').onchange=e=>{c.notas=e.target.value;save(c)};$('sp').onchange=e=>{const n=+e.target.value;if(n<c.ports.length&&c.ports.slice(n).some(x=>x.cliente)&&!confirm('Hay clientes en los puertos que se quitan. ¿Seguir?')){e.target.value=c.ports.length;return}
     c.ports=n>c.ports.length?c.ports.concat(ports(n).slice(c.ports.length)):c.ports.slice(0,n);save(c);openPanel();draw()};
   $('mv').onclick=()=>{mode='move';$('mv').textContent='Tocá el mapa…';$('mv').classList.add('on')};
-  $('cl').onclick=()=>{sel=null;draw();openPanel()};
-  $('rm').onclick=async()=>{if(!confirm('¿Borrar esta CTO?'))return;await sb.from('ctos').delete().eq('id',sel);delete ctos[sel];sel=null;draw();openPanel()};
+  $('cl').onclick=()=>{sel=null;draw();openPanel()};$('rm').onclick=async()=>{if(!confirm('¿Borrar esta CTO?'))return;await sb.from('ctos').delete().eq('id',sel);delete ctos[sel];sel=null;draw();openPanel()};
 }
 function exportCsv(){
   let t='CTO,Puerto,Estado,Cliente,dBm,Fibra,Notas,Lat,Lng\n';
