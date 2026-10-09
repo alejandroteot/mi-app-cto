@@ -29,12 +29,12 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&g
 let sb,map,ctos={},markers={},sel=null,mode=null;
 
 // Credenciales fijas de acceso directo
-const url = 'https://qcsvnjzhmovpcushgeyv.supabase.com';
+const url = 'https://qcsvnjzhmovpcushgeyv.supabase.co/rest/v1/';
 const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjc3ZuanpobW92cGN1c2hnZXl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NDUwNDQsImV4cCI6MjEwNzEyMTA0NH0.LEj1TnngvyTBZXWga5-Ipm2KIrZ5C3EBnLXWKEl15VM';
 
 start();
 
-async function start(){
+async function start(){k
   $('hd').style.display='flex';$('map').style.display='block';
   sb=supabase.createClient(url,key);
   const osm={type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19,attribution:'© OpenStreetMap'};
