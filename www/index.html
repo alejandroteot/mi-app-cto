@@ -22,6 +22,7 @@
   </div>
 
   <header id="hd" style="display:none">
+    <button id="menu-btn" style="display:none; font-size:18px; padding:4px 8px; margin-right:4px;">☰</button>
     <h1>SIDISI</h1>
     <div class="user-info">
       <span id="user-role-badge"></span>
@@ -29,6 +30,34 @@
     </div>
     <button id="add" style="display:none">+ CTO</button>
   </header>
+
+  <!-- Menú desplegable lateral (Drawer) -->
+  <div id="drawer-overlay" class="drawer-overlay"></div>
+  <div id="drawer" class="drawer">
+    <div class="drawer-header">
+      <h3>Menú Maestro</h3>
+      <button id="close-drawer">✕</button>
+    </div>
+    <ul class="drawer-menu">
+      <li id="nav-inst">📋 Instalaciones</li>
+    </ul>
+  </div>
+
+  <!-- Modal de Reporte de Instalaciones -->
+  <div id="inst-modal" class="modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Reporte de Instalaciones</h3>
+        <button id="close-inst">✕</button>
+      </div>
+      <div class="inst-filter">
+        <label>Desde: <input type="date" id="inst-from"></label>
+        <label>Hasta: <input type="date" id="inst-to"></label>
+        <button id="inst-filter-btn">Filtrar</button>
+      </div>
+      <div id="inst-list" class="inst-table-container"></div>
+    </div>
+  </div>
 
   <div id="map" style="display:none"></div>
   <div id="panel"></div>

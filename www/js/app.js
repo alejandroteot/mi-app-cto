@@ -1,7 +1,7 @@
 import { $, createDefaultPorts } from './config.js';
 import { fetchCtos, insertCto, saveCto, loginUser, getCurrentSession, logoutUser } from './supabase.js';
 import { initMap, renderMarkers } from './map.js';
-import { renderPanel } from './ui.js';
+import { renderPanel, renderInstallations } from './ui.js';
 
 let ctos = {};
 let sel = null;
@@ -11,7 +11,7 @@ let currentSession = null;
 const stateManager = {
   refreshUI() {
     renderMarkers(ctos, sel, onSelectCto, currentSession?.role);
-    renderPanel(ctos, sel, stateManager, currentSession?.role);
+    renderPanel(ctos, sel, stateManager, currentSession?.role, currentSession);
   },
   setSelected(id) {
     sel = id;
@@ -55,6 +55,47 @@ async function handleMapClick(e) {
   stateManager.refreshUI();
 }
 
+function setupDrawerAndModal() {
+  const isMaster = currentSession?.role === 'maestro';
+
+  if (isMaster) {
+    if ($('menu-btn'))$('menu-btn').style.display = 'inline-block';
+
+    const toggleDrawer = (open) => {
+      if ($('drawer'))$('drawer').classList.toggle('open', open);
+      if ($('drawer-overlay'))$('drawer-overlay').style.display = open ? 'block' : 'none';
+    };
+
+    if ($('menu-btn'))$('menu-btn').onclick = () => toggleDrawer(true);
+    if ($('close-drawer'))$('close-drawer').onclick = () => toggleDrawer(false);
+    if ($('drawer-overlay'))$('drawer-overlay').onclick = () => toggleDrawer(false);
+
+    if ($('nav-inst')) {$('nav-inst').onclick = () => {
+        toggleDrawer(false);
+        if ($('inst-modal'))$('inst-modal').style.display = 'flex';
+        
+        // Cargar por defecto últimos 30 días
+        const today = new Date();
+        const past = new Date();
+        past.setDate(today.getDate() - 30);
+
+        if ($('inst-to'))$('inst-to').value = today.toISOString().split('T')[0];
+        if ($('inst-from'))$('inst-from').value = past.toISOString().split('T')[0];
+
+        renderInstallations(ctos, $('inst-from').value, $('inst-to').value);
+      };
+    }
+
+    if ($('close-inst')) $('close-inst').onclick = () => {$('inst-modal').style.display = 'none'; };
+    if ($('inst-filter-btn')) {$('inst-filter-btn').onclick = () => {
+        renderInstallations(ctos, $('inst-from').value, $('inst-to').value);
+      };
+    }
+  } else {
+    if ($('menu-btn'))$('menu-btn').style.display = 'none';
+  }
+}
+
 async function initApp() {
   if ($('login-screen'))$('login-screen').style.display = 'none';
   if ($('hd'))$('hd').style.display = 'flex';
@@ -73,6 +114,7 @@ async function initApp() {
     if ($('add'))$('add').style.display = 'none';
   }
 
+  setupDrawerAndModal();
   initMap(handleMapClick);
 
   const data = await fetchCtos();
