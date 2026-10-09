@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mapa FTTH</string>
+    <string name="title_activity_main">Mapa FTTH</string>
+    <string name="package_name">com.isp.mapaftth</string>
+    <string name="custom_url_scheme">com.isp.mapaftth</string>
+</resources>
