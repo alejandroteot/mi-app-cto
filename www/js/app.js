@@ -50,20 +50,22 @@ async function handleMapClick(e) {
   }
 
   mode = null;
-  $('add').classList.remove('on');
+  if ($('add')) $('add').classList.remove('on');
   stateManager.refreshUI();
 }
 
 async function start() {
   initMap(handleMapClick);
 
-  $('add').onclick = () => {
-    mode = mode === 'add' ? null : 'add';
-    $('add').classList.toggle('on', !!mode);
-  };
+  if ($('add')) {
+    $('add').onclick = () => {
+      mode = mode === 'add' ? null : 'add';
+      $('add').classList.toggle('on', !!mode);
+    };
+  }
 
-  $('sat').onclick = toggleSatelliteLayer;
-  $('csv').onclick = () => exportCsv(ctos);
+  if ($('sat')) $('sat').onclick = toggleSatelliteLayer;
+  if ($('csv')) $('csv').onclick = () => exportCsv(ctos);
 
   const data = await fetchCtos();
   data.forEach(c => ctos[c.id] = c);
