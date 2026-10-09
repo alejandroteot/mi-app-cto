@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FTTH CTO</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+*{box-sizing:border-box}html,body{height:100%;margin:0;font:15px system-ui,sans-serif;color:#1b1f24}
+body{display:flex;flex-direction:column}
+header{display:flex;gap:6px;padding:8px;background:#fff;border-bottom:1px solid #d5d9e0;flex-wrap:wrap;align-items:center}
+h1{font-size:16px;margin:0 auto 0 4px}
+button,input,select{font:inherit;border:1px solid #d5d9e0;border-radius:8px;padding:7px 10px;background:#fff}
+button.on{background:#0b6bcb;color:#fff}
+#map{flex:1;min-height:200px}
+#panel{background:#fff;border-top:1px solid #d5d9e0;max-height:52vh;overflow:auto;padding:10px;display:none}
+.row{display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap}.row>*{flex:1;min-width:90px}
+.port{display:grid;grid-template-columns:30px 92px 1fr 66px;gap:5px;margin-bottom:5px;align-items:center;border-left:4px solid #1a9d55;padding-left:4px}
+.port.ocupado{border-left-color:#d6402f}
+.pin{width:30px;height:30px;border-radius:50%;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px #0006}
+</style></head><body>
+
+<header id="hd"><h1>Mapa FTTH</h1><button id="add">+ CTO</button><button id="sat">Satélite</button><button id="csv">CSV</button></header>
+<div id="map"></div><div id="panel"></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+let sb,map,ctos={},markers={},sel=null,mode=null;
+
+// Credenciales fijas para acceso público directo
+const url = 'https://qcsvnjzh.supabase.co';
+const key = 'eyJhbGciOi...'; // PEGAR ACÁ TU ANON KEY COMPLETA DE SUPABASE
+
+start();
+
+async function start(){
+  $('hd').style.display='flex';$('map').style.display='block';
+  sb=supabase.createClient(url,key);
+  const osm={type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19,attribution:'© OpenStreetMap'};
+  const sat={type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:18,attribution:'Esri'};
+  map=new maplibregl.Map({container:'map',center:[-67.80,-37.88],zoom:14,minZoom:10,maxZoom:20,renderWorldCopies:false,style:{version:8,sources:{osm,sat},layers:[{id:'osm',type:'raster',source:'osm'},{id:'sat',type:'raster',source:'sat',layout:{visibility:'none'}}]}});
+  map.addControl(new maplibregl.NavigationControl({showCompass:false}));
+  map.addControl(new maplibregl.GeolocateControl({trackUserLocation:false}));
+  map.on('click',async e=>{
+    if(!mode)return;
+    if(mode==='move'&&ctos[sel]){ctos[sel].lat=e.lngLat.lat;ctos[sel].lng=e.lngLat.lng;await save(ctos[sel])}
+    else{const c={nombre:'CTO '+(Object.keys(ctos).length+1),lat:e.lngLat.lat,lng:e.lngLat.lng,fibra:'',notas:'',ports:ports(8)};
+      const {data,error}=await sb.from('ctos').insert(c).select().single();if(error)return alert(error.message);ctos[data.id]=data;sel=data.id}
+    mode=null;$('add').classList.remove('on');draw();openPanel();
+  });
+  $('add').onclick=()=>{mode=mode?null:'add';$('add').classList.toggle('on',!!mode)};
+  $('sat').onclick=()=>{const on=map.getLayoutProperty('sat','visibility')==='none';map.setLayoutProperty('sat','visibility',on?'visible':'none')};$('csv').onclick=exportCsv;
+  const {data,error}=await sb.from('ctos').select('*');
+  if(error){alert('Error: '+error.message);return}
+  data.forEach(c=>ctos[c.id]=c);draw();
+}
+function ports(n){return Array.from({length:n},(_,i)=>({n:i+1,estado:'libre',cliente:'',potencia:''}))}
+async function save(c){const {error}=await sb.from('ctos').update({nombre:c.nombre,lat:c.lat,lng:c.lng,fibra:c.fibra,notas:c.notas,ports:c.ports}).eq('id',c.id);if(error)alert(error.message)}
+function draw(){
+  Object.values(markers).forEach(m=>m.remove());markers={};
+  Object.values(ctos).forEach(c=>{
+    const libres=c.ports.filter(p=>p.estado==='libre').length;
+    const el=document.createElement('div');el.className='pin';el.textContent=libres;
+    el.style.background=c.id===sel?'#0b6bcb':(libres?'#1a9d55':'#d6402f');
+    el.onclick=e=>{e.stopPropagation();sel=c.id;draw();openPanel()};
+    const mk=new maplibregl.Marker({element:el,draggable:c.id===sel}).setLngLat([c.lng,c.lat]).addTo(map);
+    mk.on('dragend',async()=>{const p=mk.getLngLat();c.lat=p.lat;c.lng=p.lng;await save(c)});
+    markers[c.id]=mk;
+  });
+}
+function openPanel(){
+  const c=ctos[sel],p=$('panel');if(!c){p.style.display='none';return}
+  p.style.display='block';
+  p.innerHTML=`<div class="row"><input id="n" value="${esc(c.nombre)}"><select id="sp"><option value="8">Splitter 1:8</option><option value="16">Splitter 1:16</option></select></div>
+  <div class="row"><input id="fib" placeholder="Fibra / hilo de entrada" value="${esc(c.fibra)}"><input id="nt" placeholder="Notas (poste, dirección)" value="${esc(c.notas)}"></div>
+  <div id="ps"></div><div class="row"><button id="mv">Mover</button><button id="cl">Cerrar</button><button id="rm" style="color:#d6402f">Borrar</button></div>`;
+  $('sp').value=String(c.ports.length);
+  c.ports.forEach(pt=>{
+    const d=document.createElement('div');d.className='port '+pt.estado;
+    d.innerHTML=`<b>${pt.n}</b><select><option value="libre">Libre</option><option value="ocupado">Ocupado</option></select><input placeholder="Cliente / ONT" value="${esc(pt.cliente)}"><input placeholder="dBm" value="${esc(pt.potencia)}">`;
+    const [,s,cl,pw]=d.children;s.value=pt.estado;
+    s.onchange=()=>{pt.estado=s.value;d.className='port '+pt.estado;save(c);draw()};
+    cl.onchange=()=>{pt.cliente=cl.value;if(cl.value&&pt.estado==='libre'){pt.estado='ocupado';s.value='ocupado';d.className='port ocupado'}save(c);draw()};
+    pw.onchange=()=>{pt.potencia=pw.value;save(c)};
+    $('ps').appendChild(d);
+  });
+  $('n').onchange=e=>{c.nombre=e.target.value;save(c)};$('fib').onchange=e=>{c.fibra=e.target.value;save(c)};
+  $('nt').onchange=e=>{c.notas=e.target.value;save(c)};$('sp').onchange=e=>{const n=+e.target.value;if(n<c.ports.length&&c.ports.slice(n).some(x=>x.cliente)&&!confirm('Hay clientes en los puertos que se quitan. ¿Seguir?')){e.target.value=c.ports.length;return}
+    c.ports=n>c.ports.length?c.ports.concat(ports(n).slice(c.ports.length)):c.ports.slice(0,n);save(c);openPanel();draw()};
+  $('mv').onclick=()=>{mode='move';$('mv').textContent='Tocá el mapa…';$('mv').classList.add('on')};
+  $('cl').onclick=()=>{sel=null;draw();openPanel()};$('rm').onclick=async()=>{if(!confirm('¿Borrar esta CTO?'))return;await sb.from('ctos').delete().eq('id',sel);delete ctos[sel];sel=null;draw();openPanel()};
+}
+function exportCsv(){
+  let t='CTO,Puerto,Estado,Cliente,dBm,Fibra,Notas,Lat,Lng\n';
+  Object.values(ctos).forEach(c=>c.ports.forEach(p=>{t+=[c.nombre,p.n,p.estado,p.cliente,p.potencia,c.fibra,c.notas,c.lat,c.lng].map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')+'\n'}));
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv'}));a.download='cto-puertos.csv';a.click();
+}
+</script></body></html>
