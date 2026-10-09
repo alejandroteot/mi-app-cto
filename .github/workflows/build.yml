@@ -16,7 +16,7 @@ jobs:
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '22'
 
       - name: Configurar Java
         uses: actions/setup-java@v4
@@ -24,10 +24,10 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Instalar dependencias y sincronizar Capacitor
+      - name: Instalar dependencias y generar proyecto Android
         run: |
           npm install
-          npx cap sync android
+          npx cap add android || npx cap sync android
 
       - name: Compilar APK en modo Debug
         run: |
