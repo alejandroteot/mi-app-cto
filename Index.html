@@ -29,10 +29,11 @@ button.on{background:#0b6bcb;color:#fff}
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
-let sb,map,ctos={},markers={},sel=null,mode=null;
-let url=localStorage.getItem('sbu'),key=localStorage.getItem('sbk');
-try{if(url)url=new URL(url.trim()).origin}catch(e){url=null}
-if(!url||!key){$('setup').style.display='block';$('go').onclick=()=>{localStorage.setItem('sbu',$('u').value.trim());localStorage.setItem('sbk',$('k').value.trim());location.reload()}}
+const url = 'https://qcsvnjzh.supabase.co';
+const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjc3ZuanpobW92cGN1c2hnZXl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NDUwNDQsImV4cCI6MjEwNzEyMTA0NH0.LEj1TnngvyTBZXWga5-Ipm2KIrZ5C3EBnLXWKEl15VM';
+
+start();
+  
 else start();
 async function start(){
   $('hd').style.display='flex';$('map').style.display='block';
