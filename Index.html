@@ -17,31 +17,29 @@ button.on{background:#0b6bcb;color:#fff}
 .port.ocupado{border-left-color:#d6402f}
 .pin{width:30px;height:30px;border-radius:50%;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px #0006}
 </style></head><body>
-
-<header id="hd" style="display:none"><h1>Mapa FTTH</h1><button id="add">+ CTO</button><button id="sat">Satélite</button><button id="csv">CSV</button></header>
-<div id="map" style="display:none"></div><div id="panel"></div>
-
+<header id="hd"><h1>Mapa FTTH</h1><button id="add">+ CTO</button><button id="sat">Satélite</button><button id="csv">CSV</button></header>
+<div id="map"></div><div id="panel"></div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+
+// Credenciales fijas para uso en GitHub Pages
+const SUPABASE_URL = 'https://qcsvnjzhmovpcushgeyv.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjc3ZuanpobW92cGN1c2hnZXl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NDUwNDQsImV4cCI6MjEwNzEyMTA0NH0.LEj1TnngvyTBZXWga5-Ipm2KIrZ5C3EBnLXWKEl15VM';
+
 let sb,map,ctos={},markers={},sel=null,mode=null;
 
-// Credenciales fijas de acceso directo
-const url = 'https://qcsvnjzhmovpcushgeyv.supabase.co';
-const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjc3ZuanpobW92cGN1c2hnZXl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NDUwNDQsImV4cCI6MjEwNzEyMTA0NH0.LEj1TnngvyTBZXWga5-Ipm2KIrZ5C3EBnLXWKEl15VM';
-
-start();
-
-async function start(){k
-  $('hd').style.display='flex';$('map').style.display='block';
-  sb=supabase.createClient(url,key);
+async function start(){
+  sb=supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  
   const osm={type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19,attribution:'© OpenStreetMap'};
   const sat={type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:18,attribution:'Esri'};
   map=new maplibregl.Map({container:'map',center:[-67.80,-37.88],zoom:14,minZoom:10,maxZoom:20,renderWorldCopies:false,style:{version:8,sources:{osm,sat},layers:[{id:'osm',type:'raster',source:'osm'},{id:'sat',type:'raster',source:'sat',layout:{visibility:'none'}}]}});
   map.addControl(new maplibregl.NavigationControl({showCompass:false}));
   map.addControl(new maplibregl.GeolocateControl({trackUserLocation:false}));
+  
   map.on('click',async e=>{
     if(!mode)return;
     if(mode==='move'&&ctos[sel]){ctos[sel].lat=e.lngLat.lat;ctos[sel].lng=e.lngLat.lng;await save(ctos[sel])}
@@ -49,14 +47,18 @@ async function start(){k
       const {data,error}=await sb.from('ctos').insert(c).select().single();if(error)return alert(error.message);ctos[data.id]=data;sel=data.id}
     mode=null;$('add').classList.remove('on');draw();openPanel();
   });
+  
   $('add').onclick=()=>{mode=mode?null:'add';$('add').classList.toggle('on',!!mode)};
   $('sat').onclick=()=>{const on=map.getLayoutProperty('sat','visibility')==='none';map.setLayoutProperty('sat','visibility',on?'visible':'none')};$('csv').onclick=exportCsv;
+  
   const {data,error}=await sb.from('ctos').select('*');
-  if(error){alert('Error: '+error.message);return}
+  if(error){alert('Error al cargar la base de datos: '+error.message);return}
   data.forEach(c=>ctos[c.id]=c);draw();
 }
+
 function ports(n){return Array.from({length:n},(_,i)=>({n:i+1,estado:'libre',cliente:'',potencia:''}))}
 async function save(c){const {error}=await sb.from('ctos').update({nombre:c.nombre,lat:c.lat,lng:c.lng,fibra:c.fibra,notas:c.notas,ports:c.ports}).eq('id',c.id);if(error)alert(error.message)}
+
 function draw(){
   Object.values(markers).forEach(m=>m.remove());markers={};
   Object.values(ctos).forEach(c=>{
@@ -69,6 +71,7 @@ function draw(){
     markers[c.id]=mk;
   });
 }
+
 function openPanel(){
   const c=ctos[sel],p=$('panel');if(!c){p.style.display='none';return}
   p.style.display='block';
@@ -91,9 +94,13 @@ function openPanel(){
   $('mv').onclick=()=>{mode='move';$('mv').textContent='Tocá el mapa…';$('mv').classList.add('on')};
   $('cl').onclick=()=>{sel=null;draw();openPanel()};$('rm').onclick=async()=>{if(!confirm('¿Borrar esta CTO?'))return;await sb.from('ctos').delete().eq('id',sel);delete ctos[sel];sel=null;draw();openPanel()};
 }
+
 function exportCsv(){
   let t='CTO,Puerto,Estado,Cliente,dBm,Fibra,Notas,Lat,Lng\n';
   Object.values(ctos).forEach(c=>c.ports.forEach(p=>{t+=[c.nombre,p.n,p.estado,p.cliente,p.potencia,c.fibra,c.notas,c.lat,c.lng].map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')+'\n'}));
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv'}));a.download='cto-puertos.csv';a.click();
 }
+
+// Iniciar aplicación directamente
+start();
 </script></body></html>
