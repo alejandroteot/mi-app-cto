@@ -1,0 +1,33 @@
+name: Respaldar Base de Datos Supabase
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Obtener datos de Supabase
+        env:
+          SUPABASE_URL: "https://qcsvnjzhmovpcushgeyv.supabase.co"
+          SUPABASE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjc3ZuanpobW92cGN1c2hnZXl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NDUwNDQsImV4cCI6MjEwNzEyMTA0NH0.LEj1TnngvyTBZXWga5-Ipm2KIrZ5C3EBnLXWKEl15VM"
+        run: |
+          mkdir -p backups
+          FECHA=$(date +'%Y-%m-%d_%H-%M')
+          curl -s -X GET "$SUPABASE_URL/rest/v1/ctos?select=*" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            > "backups/ctos_backup_$FECHA.json"
+
+      - name: Guardar respaldo en el repositorio
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add backups/
+          git commit -m "chore: respaldo automatico de CTOs $(date +'%Y-%m-%d')" || exit 0
+          git push
