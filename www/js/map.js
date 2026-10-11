@@ -3,15 +3,6 @@ import { saveCto } from './supabase.js';
 let map;
 let markers = {};
 
-map.on('click', onMapClick);
-
-  // Forzar a MapLibre a ajustarse a la pantalla del celular
-  setTimeout(() => {
-    map.resize();
-  }, 100);
-
-  return map;
-
 export function initMap(onMapClick) {
   const osm = { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap' };
   const sat = { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 18, attribution: 'Esri' };
@@ -37,6 +28,11 @@ export function initMap(onMapClick) {
   map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: false }));
 
   map.on('click', onMapClick);
+
+  // Redimensionar automáticamente MapLibre para ajustarse a la pantalla
+  setTimeout(() => {
+    if (map) map.resize();
+  }, 250);
 
   return map;
 }
