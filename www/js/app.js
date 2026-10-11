@@ -97,29 +97,44 @@ function setupDrawerAndModal() {
 }
 
 async function initApp() {
-  if ($('login-screen'))$('login-screen').style.display = 'none';
-  if ($('hd'))$('hd').style.display = 'flex';
-  if ($('map'))$('map').style.display = 'block';
+  try {
+    if ($('login-screen')) $('login-screen').style.display = 'none';
+    if ($('hd')) $('hd').style.display = 'flex';
+    if ($('map')) $('map').style.display = 'block';
 
-  if ($('user-role-badge'))$('user-role-badge').textContent = currentSession?.role || '';
+    if ($('user-role-badge')) $('user-role-badge').textContent = currentSession?.role || '';
 
-  if (currentSession?.role === 'maestro') {
-    if ($('add')) {
-      $('add').style.display = 'inline-block';$('add').onclick = () => {
-        mode = mode === 'add' ? null : 'add';
-        $('add').classList.toggle('on', !!mode);
-      };
+    if (currentSession?.role === 'maestro') {
+      if ($('add')) {
+        $('add').style.display = 'inline-block';
+        $('add').onclick = () => {
+          mode = mode === 'add' ? null : 'add';
+          $('add').classList.toggle('on', !!mode);
+        };
+      }
+    } else {
+      if ($('add')) $('add').style.display = 'none';
     }
-  } else {
-    if ($('add'))$('add').style.display = 'none';
+
+    setupDrawerAndModal();
+    
+    // Inicializar mapa y forzar reajuste de tamaño
+    const m = initMap(handleMapClick);
+    setTimeout(() => {
+      if (m && typeof m.resize === 'function') m.resize();
+    }, 250);
+
+    // Carga segura de CTOs
+    const data = await fetchCtos();
+    if (Array.isArray(data)) {
+      data.forEach(c => { if (c?.id) ctos[c.id] = c; });
+    }
+    
+    stateManager.refreshUI();
+  } catch (err) {
+    alert("Error al inicializar la app: " + err.message);
+    console.error(err);
   }
-
-  setupDrawerAndModal();
-  initMap(handleMapClick);
-
-  const data = await fetchCtos();
-  data.forEach(c => { if (c?.id) ctos[c.id] = c; });
-  stateManager.refreshUI();
 }
 
 function setupAuth() {
