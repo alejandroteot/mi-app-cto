@@ -31,6 +31,15 @@ body { display: flex; flex-direction: column; }
   background: #0b6bcb; color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer;
 }
 #login-error { color: #d6402f; font-size: 13px; margin-top: 12px; display: none; }
+/* Estilos para el logo en la pantalla de login */
+.login-logo {
+  display: block;
+  margin: 0 auto 12px auto;
+  max-width: 180px;
+  width: 65%;
+  height: auto;
+  object-fit: contain;
+}
 
 header {
   display: flex; gap: 8px; padding-top: calc(env(safe-area-inset-top, 0px) + 28px);
