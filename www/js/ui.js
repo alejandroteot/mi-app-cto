@@ -13,51 +13,68 @@ export function renderPanel(ctos, selectedId, stateManager, userRole, currentSes
   }
 
   const isMaster = userRole === 'maestro';
+  
+  // Determinar splitter actual (soporta 1:8, 1:16, 2:16)
+  const currentSplitter = c.splitter || ((c.ports || []).length === 16 ? '1:16' : '1:8');
+  const is2x16 = currentSplitter === '2:16';
 
   p.style.display = 'block';
   p.innerHTML = `
     <div class="row">
-      <input id="n" value="${esc(c.nombre)}" ${isMaster ? '' : 'disabled'}>
+      <input id="n" placeholder="Nombre CTO" value="${esc(c.nombre)}" ${isMaster ? '' : 'disabled'}>
       <select id="sp" ${isMaster ? '' : 'disabled'}>
-        <option value="8">Splitter 1:8</option>
-        <option value="16">Splitter 1:16</option>
+        <option value="1:8" ${currentSplitter === '1:8' ? 'selected' : ''}>Splitter 1:8</option>
+        <option value="1:16" ${currentSplitter === '1:16' ? 'selected' : ''}>Splitter 1:16</option>
+        <option value="2:16" ${currentSplitter === '2:16' ? 'selected' : ''}>Splitter 2:16</option>
       </select>
     </div>
+
+    <!-- Hilos de entrada de fibra -->
     <div class="row">
-      <input id="fib" placeholder="Fibra / hilo de entrada" value="${esc(c.fibra)}" ${isMaster ? '' : 'disabled'}>
+      <input id="fib" placeholder="${is2x16 ? 'Fibra 1 (hilo entrada)' : 'Fibra / hilo de entrada'}" value="${esc(c.fibra)}" ${isMaster ? '' : 'disabled'}>
+      ${is2x16 ? `<input id="fib2" placeholder="Fibra 2 (hilo entrada)" value="${esc(c.fibra2 || '')}" ${isMaster ? '' : 'disabled'}>` : ''}
+    </div>
+
+    <!-- Notas -->
+    <div class="row">
       <input id="nt" placeholder="Notas (poste, dirección)" value="${esc(c.notas)}" ${isMaster ? '' : 'disabled'}>
     </div>
-    <div id="ps"></div>
+
+    <!-- Coordenadas GPS -->
     <div class="row">
-      ${isMaster ? '<button id="mv">Mover</button>' : ''}
+      <input id="lat" type="number" step="any" placeholder="Latitud" value="${c.lat ?? ''}" ${isMaster ? '' : 'disabled'}>
+      <input id="lng" type="number" step="any" placeholder="Longitud" value="${c.lng ?? ''}" ${isMaster ? '' : 'disabled'}>
+    </div>
+
+    <div id="ps"></div>
+
+    <div class="row">
+      ${isMaster ? '<button id="mv">Mover en mapa</button>' : ''}
       <button id="cl">Cerrar</button>
-      ${isMaster ? '<button id="rm" style="color:#d6402f">Borrar</button>' : ''}
+      ${isMaster ? '<button id="rm" style="color:#d6402f">Borrar CTO</button>' : ''}
     </div>
   `;
 
-  if ($('sp')) $('sp').value = String((c.ports || []).length);
-
+  // Renderizar puertos con permisos controlados
   (c.ports || []).forEach(pt => {
-    const isOccupied = pt.estado === 'ocupado';
-    const hasClient = Boolean(pt.cliente && pt.cliente.trim() !== '');
-
-    // Restricción para técnicos: no pueden liberar puertos ocupados ni modificar clientes existentes
-    const disableSelect = !isMaster && isOccupied;
-    const disableInput = !isMaster && hasClient;
-
     const d = document.createElement('div');
-    d.className = 'port ' + pt.estado;
+    const isOccupied = pt.estado === 'ocupado' || Boolean(pt.cliente);
+    d.className = 'port ' + (pt.estado || 'libre');
+
+    // Si NO es maestro y el puerto está ocupado: el técnico no puede tocar nada
+    const lockForTech = !isMaster && isOccupied;
+
     d.innerHTML = `
       <b>${pt.n}</b>
-      <select ${disableSelect ? 'disabled' : ''}>
-        <option value="libre">Libre</option>
+      <select ${lockForTech ? 'disabled' : ''}>
+        ${isMaster || !isOccupied ? '<option value="libre">Libre</option>' : ''}
         <option value="ocupado">Ocupado</option>
       </select>
-      <input placeholder="Cliente / ONT" value="${esc(pt.cliente)}" ${disableInput ? 'disabled' : ''}>
+      <input placeholder="Cliente / ONT" value="${esc(pt.cliente)}" ${lockForTech ? 'disabled' : ''}>
     `;
 
     const [, s, cl] = d.children;
-    s.value = pt.estado;
+    s.value = pt.estado || 'libre';
 
     const updateAudit = () => {
       pt.tecnico = currentSession?.user || 'desconocido';
@@ -65,9 +82,9 @@ export function renderPanel(ctos, selectedId, stateManager, userRole, currentSes
     };
 
     s.onchange = () => {
-      // Doble validación de seguridad
-      if (!isMaster && pt.estado === 'ocupado' && s.value === 'libre') {
-        alert('Solo el usuario maestro puede liberar puertos ocupados.');
+      // Bloqueo preventivo de paso a libre para técnicos
+      if (!isMaster && s.value === 'libre') {
+        alert('Solo el usuario Maestro puede liberar puertos.');
         s.value = 'ocupado';
         return;
       }
@@ -80,12 +97,14 @@ export function renderPanel(ctos, selectedId, stateManager, userRole, currentSes
 
     cl.onchange = () => {
       const val = cl.value.trim();
-      // Doble validación para no quitar clientes existentes
+
+      // Un técnico no puede vaciar el cliente de un puerto ocupado
       if (!isMaster && pt.cliente && !val) {
-        alert('Solo el usuario maestro puede quitar clientes.');
+        alert('Solo el usuario Maestro puede quitar clientes de un puerto.');
         cl.value = pt.cliente;
         return;
       }
+
       pt.cliente = val;
       if (val && pt.estado === 'libre') {
         pt.estado = 'ocupado';
@@ -100,19 +119,47 @@ export function renderPanel(ctos, selectedId, stateManager, userRole, currentSes
     if ($('ps')) $('ps').appendChild(d);
   });
 
+  // Eventos para campos del Maestro
   if (isMaster) {
     if ($('n')) $('n').onchange = e => { c.nombre = e.target.value; saveCto(c); };
     if ($('fib')) $('fib').onchange = e => { c.fibra = e.target.value; saveCto(c); };
+    if ($('fib2')) $('fib2').onchange = e => { c.fibra2 = e.target.value; saveCto(c); };
     if ($('nt')) $('nt').onchange = e => { c.notas = e.target.value; saveCto(c); };
 
+    // Edición manual de coordenadas (actualiza la CTO y el mapa)
+    if ($('lat')) $('lat').onchange = async e => {
+      const val = parseFloat(e.target.value);
+      if (!isNaN(val)) {
+        c.lat = val;
+        await saveCto(c);
+        stateManager.refreshUI();
+      }
+    };
+    if ($('lng')) $('lng').onchange = async e => {
+      const val = parseFloat(e.target.value);
+      if (!isNaN(val)) {
+        c.lng = val;
+        await saveCto(c);
+        stateManager.refreshUI();
+      }
+    };
+
+    // Cambio de splitter (1:8, 1:16, 2:16)
     if ($('sp')) {
       $('sp').onchange = e => {
-        const n = +e.target.value;
-        if (n < c.ports.length && c.ports.slice(n).some(x => x.cliente) && !confirm('Hay clientes en los puertos que se quitan. ¿Seguir?')) {
-          e.target.value = c.ports.length;
+        const val = e.target.value;
+        const targetPorts = val === '1:8' ? 8 : 16;
+
+        if (targetPorts < c.ports.length && c.ports.slice(targetPorts).some(x => x.cliente) && !confirm('Hay clientes en los puertos que se van a recortar. ¿Continuar?')) {
+          e.target.value = currentSplitter;
           return;
         }
-        c.ports = n > c.ports.length ? c.ports.concat(createDefaultPorts(n).slice(c.ports.length)) : c.ports.slice(0, n);
+
+        c.splitter = val;
+        c.ports = targetPorts > c.ports.length
+          ? c.ports.concat(createDefaultPorts(targetPorts).slice(c.ports.length))
+          : c.ports.slice(0, targetPorts);
+
         saveCto(c);
         stateManager.refreshUI();
       };
