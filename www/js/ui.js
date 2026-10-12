@@ -35,18 +35,25 @@ export function renderPanel(ctos, selectedId, stateManager, userRole, currentSes
     </div>
   `;
 
-  if ($('sp'))$('sp').value = String((c.ports || []).length);
+  if ($('sp')) $('sp').value = String((c.ports || []).length);
 
   (c.ports || []).forEach(pt => {
+    const isOccupied = pt.estado === 'ocupado';
+    const hasClient = Boolean(pt.cliente && pt.cliente.trim() !== '');
+
+    // Restricción para técnicos: no pueden liberar puertos ocupados ni modificar clientes existentes
+    const disableSelect = !isMaster && isOccupied;
+    const disableInput = !isMaster && hasClient;
+
     const d = document.createElement('div');
     d.className = 'port ' + pt.estado;
     d.innerHTML = `
       <b>${pt.n}</b>
-      <select>
+      <select ${disableSelect ? 'disabled' : ''}>
         <option value="libre">Libre</option>
         <option value="ocupado">Ocupado</option>
       </select>
-      <input placeholder="Cliente / ONT" value="${esc(pt.cliente)}">
+      <input placeholder="Cliente / ONT" value="${esc(pt.cliente)}" ${disableInput ? 'disabled' : ''}>
     `;
 
     const [, s, cl] = d.children;
@@ -58,6 +65,12 @@ export function renderPanel(ctos, selectedId, stateManager, userRole, currentSes
     };
 
     s.onchange = () => {
+      // Doble validación de seguridad
+      if (!isMaster && pt.estado === 'ocupado' && s.value === 'libre') {
+        alert('Solo el usuario maestro puede liberar puertos ocupados.');
+        s.value = 'ocupado';
+        return;
+      }
       pt.estado = s.value;
       d.className = 'port ' + pt.estado;
       updateAudit();
@@ -66,8 +79,15 @@ export function renderPanel(ctos, selectedId, stateManager, userRole, currentSes
     };
 
     cl.onchange = () => {
-      pt.cliente = cl.value;
-      if (cl.value && pt.estado === 'libre') {
+      const val = cl.value.trim();
+      // Doble validación para no quitar clientes existentes
+      if (!isMaster && pt.cliente && !val) {
+        alert('Solo el usuario maestro puede quitar clientes.');
+        cl.value = pt.cliente;
+        return;
+      }
+      pt.cliente = val;
+      if (val && pt.estado === 'libre') {
         pt.estado = 'ocupado';
         s.value = 'ocupado';
         d.className = 'port ocupado';
@@ -77,15 +97,16 @@ export function renderPanel(ctos, selectedId, stateManager, userRole, currentSes
       stateManager.refreshUI();
     };
 
-    if ($('ps'))$('ps').appendChild(d);
+    if ($('ps')) $('ps').appendChild(d);
   });
 
   if (isMaster) {
-    if ($('n'))$('n').onchange = e => { c.nombre = e.target.value; saveCto(c); };
-    if ($('fib'))$('fib').onchange = e => { c.fibra = e.target.value; saveCto(c); };
-    if ($('nt'))$('nt').onchange = e => { c.notas = e.target.value; saveCto(c); };
+    if ($('n')) $('n').onchange = e => { c.nombre = e.target.value; saveCto(c); };
+    if ($('fib')) $('fib').onchange = e => { c.fibra = e.target.value; saveCto(c); };
+    if ($('nt')) $('nt').onchange = e => { c.notas = e.target.value; saveCto(c); };
 
-    if ($('sp')) {$('sp').onchange = e => {
+    if ($('sp')) {
+      $('sp').onchange = e => {
         const n = +e.target.value;
         if (n < c.ports.length && c.ports.slice(n).some(x => x.cliente) && !confirm('Hay clientes en los puertos que se quitan. ¿Seguir?')) {
           e.target.value = c.ports.length;
@@ -97,14 +118,16 @@ export function renderPanel(ctos, selectedId, stateManager, userRole, currentSes
       };
     }
 
-    if ($('mv')) {$('mv').onclick = () => {
+    if ($('mv')) {
+      $('mv').onclick = () => {
         stateManager.setMode('move');
         $('mv').textContent = 'Tocá el mapa…';
         $('mv').classList.add('on');
       };
     }
 
-    if ($('rm')) {$('rm').onclick = async () => {
+    if ($('rm')) {
+      $('rm').onclick = async () => {
         if (!confirm('¿Borrar esta CTO?')) return;
         const ok = await deleteCtoFromDb(selectedId);
         if (ok) {
@@ -115,7 +138,8 @@ export function renderPanel(ctos, selectedId, stateManager, userRole, currentSes
     }
   }
 
-  if ($('cl')) {$('cl').onclick = () => {
+  if ($('cl')) {
+    $('cl').onclick = () => {
       stateManager.setSelected(null);
     };
   }
