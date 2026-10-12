@@ -1,6 +1,45 @@
 import { $, esc, createDefaultPorts } from './config.js';
 import { saveCto, deleteCtoFromDb } from './supabase.js';
 
+function parseCoordinates(value) {
+  const input = value.trim();
+  let lat;
+  let lng;
+  const decimalMatch = input.match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*[,;]\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))$/)
+    || input.match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))$/);
+
+  if (decimalMatch) {
+    lat = Number(decimalMatch[1]);
+    lng = Number(decimalMatch[2]);
+  } else {
+    const hemisphereMatch = input.match(/^(\d+(?:\.\d+)?)\s*°?\s*([NS])\s*[,; ]+\s*(\d+(?:\.\d+)?)\s*°?\s*([EW])$/i);
+    const dmsMatch = input.match(/^(\d{1,3})\s*°\s*(\d{1,2}(?:\.\d+)?)\s*['′]\s*(?:(\d{1,2}(?:\.\d+)?)\s*["″])?\s*([NS])\s*[,; ]+\s*(\d{1,3})\s*°\s*(\d{1,2}(?:\.\d+)?)\s*['′]\s*(?:(\d{1,2}(?:\.\d+)?)\s*["″])?\s*([EW])$/i);
+
+    if (hemisphereMatch) {
+      lat = Number(hemisphereMatch[1]) * (hemisphereMatch[2].toUpperCase() === 'S' ? -1 : 1);
+      lng = Number(hemisphereMatch[3]) * (hemisphereMatch[4].toUpperCase() === 'W' ? -1 : 1);
+    } else if (dmsMatch) {
+      const toDecimal = (degrees, minutes, seconds, hemisphere) => {
+        const mins = Number(minutes);
+        const secs = Number(seconds || 0);
+        if (mins >= 60 || secs >= 60) return NaN;
+        const sign = hemisphere.toUpperCase() === 'S' || hemisphere.toUpperCase() === 'W' ? -1 : 1;
+        return sign * (Number(degrees) + mins / 60 + secs / 3600);
+      };
+      lat = toDecimal(dmsMatch[1], dmsMatch[2], dmsMatch[3], dmsMatch[4]);
+      lng = toDecimal(dmsMatch[5], dmsMatch[6], dmsMatch[7], dmsMatch[8]);
+    } else {
+      return null;
+    }
+  }
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    return null;
+  }
+
+  return { lat, lng };
+}
+
 export function renderPanel(ctos, selectedId, stateManager, userRole, currentSession) {
   const c = ctos[selectedId];
   const p = $('panel');
@@ -42,8 +81,7 @@ export function renderPanel(ctos, selectedId, stateManager, userRole, currentSes
 
     <!-- Coordenadas GPS -->
     <div class="row">
-      <input id="lat" type="number" step="any" placeholder="Latitud" value="${c.lat ?? ''}" ${isMaster ? '' : 'disabled'}>
-      <input id="lng" type="number" step="any" placeholder="Longitud" value="${c.lng ?? ''}" ${isMaster ? '' : 'disabled'}>
+      <input id="coords" type="text" inputmode="decimal" placeholder="Coordenadas" aria-label="Coordenadas" title="Pegá las coordenadas copiadas de Google Earth" value="${c.lat == null || c.lng == null ? '' : `${c.lat}, ${c.lng}`}" ${isMaster ? '' : 'disabled'}>
     </div>
 
     <div id="ps"></div>
@@ -126,22 +164,19 @@ export function renderPanel(ctos, selectedId, stateManager, userRole, currentSes
     if ($('fib2')) $('fib2').onchange = e => { c.fibra2 = e.target.value; saveCto(c); };
     if ($('nt')) $('nt').onchange = e => { c.notas = e.target.value; saveCto(c); };
 
-    // Edición manual de coordenadas (actualiza la CTO y el mapa)
-    if ($('lat')) $('lat').onchange = async e => {
-      const val = parseFloat(e.target.value);
-      if (!isNaN(val)) {
-        c.lat = val;
-        await saveCto(c);
-        stateManager.refreshUI();
+    // Acepta coordenadas copiadas de Google Earth y actualiza la CTO y el mapa.
+    if ($('coords')) $('coords').onchange = async e => {
+      const coordinates = parseCoordinates(e.target.value);
+      if (!coordinates) {
+        alert('Coordenadas inválidas. Pegá latitud y longitud, por ejemplo: -37.88, -67.80.');
+        e.target.value = c.lat == null || c.lng == null ? '' : `${c.lat}, ${c.lng}`;
+        return;
       }
-    };
-    if ($('lng')) $('lng').onchange = async e => {
-      const val = parseFloat(e.target.value);
-      if (!isNaN(val)) {
-        c.lng = val;
-        await saveCto(c);
-        stateManager.refreshUI();
-      }
+
+      c.lat = coordinates.lat;
+      c.lng = coordinates.lng;
+      await saveCto(c);
+      stateManager.refreshUI();
     };
 
     // Cambio de splitter (1:8, 1:16, 2:16)
