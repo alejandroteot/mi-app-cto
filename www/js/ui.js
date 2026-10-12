@@ -40,6 +40,19 @@ function parseCoordinates(value) {
   return { lat, lng };
 }
 
+// Cuenta los puertos libres: sin estado 'ocupado' y sin cliente cargado
+export function contarLibres(c) {
+  return (c.ports || []).filter(pt => pt.estado !== 'ocupado' && !pt.cliente).length;
+}
+
+// Rojo si no quedan puertos libres, amarillo si quedan 1 a 4, null si no aplica
+export function colorCto(c) {
+  const libres = contarLibres(c);
+  if (libres === 0) return '#d6402f';
+  if (libres <= 4) return '#f5c400';
+  return null;
+}
+
 export function renderPanel(ctos, selectedId, stateManager, userRole, currentSession) {
   const c = ctos[selectedId];
   const p = $('panel');
@@ -52,7 +65,7 @@ export function renderPanel(ctos, selectedId, stateManager, userRole, currentSes
   }
 
   const isMaster = userRole === 'maestro';
-  
+
   // Determinar splitter actual (soporta 1:8, 1:16, 2:16)
   const currentSplitter = c.splitter || ((c.ports || []).length === 16 ? '1:16' : '1:8');
   const is2x16 = currentSplitter === '2:16';

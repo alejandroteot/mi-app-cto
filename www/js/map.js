@@ -3,6 +3,8 @@ import { saveCto } from './supabase.js';
 let map;
 let markers = {};
 
+import { colorCto, contarLibres } from './ui.js';
+
 export function initMap(onMapClick) {
   const osm = { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap' };
   const sat = { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 18, attribution: 'Esri' };
@@ -45,11 +47,11 @@ export function renderMarkers(ctos, selectedId, onSelectCto, userRole) {
 
   Object.values(ctos).forEach(c => {
     const ports = c.ports || [];
-    const libres = ports.filter(p => p.estado === 'libre').length;
+    const libres = contarLibres(c);
     const el = document.createElement('div');
     el.className = 'pin';
     el.textContent = libres;
-    el.style.background = c.id === selectedId ? '#0b6bcb' : (libres ? '#1a9d55' : '#d6402f');
+    el.style.background = c.id === selectedId ? '#0b6bcb' : (colorCto(c) || '#1a9d55');
 
     el.onclick = e => {
       e.stopPropagation();
