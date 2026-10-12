@@ -6,33 +6,15 @@ export async function loginUser(username, password) {
   const cleanUser = username.toLowerCase().trim();
   const email = cleanUser.includes('@') ? cleanUser : `${cleanUser}@sidisi.com`;
 
-  if (sb) {
-    const { data, error } = await sb.auth.signInWithPassword({ email, password }).catch(() => ({ data: null }));
-    if (!error && data?.user) {
-      const role = data.user.user_metadata?.role || (cleanUser.includes('sidisi') ? 'maestro' : 'tecnico');
-      const userSession = { user: data.user.email, role };
-      localStorage.setItem('sidisi_session', JSON.stringify(userSession));
-      return { ok: true, session: userSession };
-    }
-  }
+  if (!sb) return { ok: false, message: 'No se pudo conectar con el servidor' };
 
-  const validUsers = {
-    'sidisi': { pass: 'sidisisas', role: 'maestro' },
-    'sidisi@sidisi.com': { pass: 'sidisisas', role: 'maestro' },
-    'lucas': { pass: 'sds*1234', role: 'tecnico' },
-    'lucas@sidisi.com': { pass: 'sds*1234', role: 'tecnico' },
-    'joaquin': { pass: 'sds*1234', role: 'tecnico' },
-    'joaquin@sidisi.com': { pass: 'sds*1234', role: 'tecnico' }
-  };
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error || !data?.user) return { ok: false, message: 'Usuario o contraseña incorrectos' };
 
-  const account = validUsers[cleanUser];
-  if (account && account.pass === password) {
-    const userSession = { user: cleanUser, role: account.role };
-    localStorage.setItem('sidisi_session', JSON.stringify(userSession));
-    return { ok: true, session: userSession };
-  }
-
-  return { ok: false, message: 'Usuario o contraseña incorrectos' };
+  const role = data.user.app_metadata?.role || 'tecnico';
+  const userSession = { user: data.user.email, role };
+  localStorage.setItem('sidisi_session', JSON.stringify(userSession));
+  return { ok: true, session: userSession };
 }
 
 export function getCurrentSession() {
