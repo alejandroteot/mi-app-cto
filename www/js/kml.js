@@ -78,24 +78,67 @@ export function construirKml(ctos) {
   return { kml, incluidas: conCoords.length, omitidas };
 }
 
-export function descargarKml(ctos) {
+// Dentro de la app (APK) el navegador interno no guarda descargas.
+// Devuelve los plugins nativos si estamos en Android/iOS, o null en el navegador.
+function pluginsNativos() {
+  const cap = window.Capacitor;
+  if (!cap?.isNativePlatform?.()) return null;
+  const { Filesystem, Share } = cap.Plugins || {};
+  return Filesystem && Share ? { Filesystem, Share } : null;
+}
+
+// Escribe el KML en la caché de la app y abre el menú de compartir del sistema
+async function compartirKmlNativo({ Filesystem, Share }, nombre, kml) {
+  const { uri } = await Filesystem.writeFile({
+    path: nombre,
+    data: kml,
+    directory: 'CACHE',
+    encoding: 'utf8',
+  });
+  await Share.share({
+    title: nombre,
+    dialogTitle: 'Compartir KML de SIDISI',
+    files: [uri],
+  });
+}
+
+// En el navegador de la PC: descarga normal del archivo
+function descargarEnNavegador(nombre, kml) {
+  const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nombre;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export async function descargarKml(ctos) {
   const { kml, incluidas, omitidas } = construirKml(ctos);
   if (!incluidas) {
     alert('No hay CTOs con coordenadas para exportar.');
     return;
   }
 
-  const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `SIDISI_CTOs_${fechaLocal()}.kml`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-
   if (omitidas) {
     alert(`${omitidas} CTO(s) sin coordenadas no se incluyeron en el KML.`);
+  }
+
+  const nombre = `SIDISI_CTOs_${fechaLocal()}.kml`;
+  const nativo = pluginsNativos();
+
+  if (!nativo) {
+    descargarEnNavegador(nombre, kml);
+    return;
+  }
+
+  try {
+    await compartirKmlNativo(nativo, nombre, kml);
+  } catch (err) {
+    const msg = String(err?.message || err);
+    // Cerrar el menú de compartir sin elegir nada no es un error
+    if (!/cancel/i.test(msg)) alert('No se pudo compartir el KML: ' + msg);
   }
 }
