@@ -3,6 +3,7 @@ import { fetchCtos, insertCto, saveCto, loginUser, getCurrentSession, logoutUser
 import { initMap, renderMarkers } from './map.js';
 import { renderPanel, renderInstallations } from './ui.js';
 import { openNewInstallation, initNewInstallation } from './install.js';
+import { descargarKml } from './kml.js';
 
 let ctos = {};
 let sel = null;
@@ -80,6 +81,15 @@ function setupDrawerAndModal() {
     };
   }
   initNewInstallation();
+
+  // Descargar KML del mapa (solo Maestro)
+  if ($('drawer-footer')) $('drawer-footer').style.display = isMaster ? '' : 'none';
+  if ($('btn-kml')) {
+    $('btn-kml').onclick = () => {
+      toggleDrawer(false);
+      descargarKml(ctos);
+    };
+  }
 
   // Reporte de instalaciones (solo Maestro)
   if ($('nav-inst')) $('nav-inst').style.display = isMaster ? '' : 'none';

@@ -3,7 +3,7 @@ import { saveCto } from './supabase.js';
 let map;
 let markers = {};
 
-import { colorCto, contarLibres } from './ui.js';
+import { colorCto, contarLibres, estadoCto } from './ui.js';
 
 export function initMap(onMapClick) {
   const osm = { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap' };
@@ -46,12 +46,16 @@ export function renderMarkers(ctos, selectedId, onSelectCto, userRole) {
   const isMaster = userRole === 'maestro';
 
   Object.values(ctos).forEach(c => {
-    const ports = c.ports || [];
+    // Sin coordenadas no hay dónde ubicarla en el mapa
+    if (c.lat == null || c.lng == null) return;
+
+    const total = (c.ports || []).length;
     const libres = contarLibres(c);
     const el = document.createElement('div');
-    el.className = 'pin';
+    el.className = 'pin' + (c.id === selectedId ? ' sel' : '');
     el.textContent = libres;
-    el.style.background = c.id === selectedId ? '#0b6bcb' : (colorCto(c) || '#1a9d55');
+    el.style.background = colorCto(c);
+    el.title = `${c.nombre}: ${libres} libres de ${total} (${estadoCto(c)})`;
 
     el.onclick = e => {
       e.stopPropagation();

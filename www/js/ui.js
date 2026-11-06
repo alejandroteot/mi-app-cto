@@ -45,12 +45,36 @@ export function contarLibres(c) {
   return (c.ports || []).filter(pt => pt.estado !== 'ocupado' && !pt.cliente).length;
 }
 
-// Rojo si no quedan puertos libres, amarillo si quedan 1 a 4, null si no aplica
+// Puertos ocupados = total de puertos - libres
+export function contarOcupados(c) {
+  return (c.ports || []).length - contarLibres(c);
+}
+
+export const COLOR_VERDE = '#1a9d55';
+export const COLOR_AMARILLO = '#f5c400';
+export const COLOR_ROJO = '#d6402f';
+
+// Umbrales según cantidad de puertos OCUPADOS:
+//   CTO de 8:   verde 0-5 · amarillo 6-7 · rojo 8
+//   CTO de 16:  verde 0-12 · amarillo 13-15 · rojo 16
+const UMBRALES = {
+  8: { amarillo: 6, rojo: 8 },
+  16: { amarillo: 13, rojo: 16 },
+};
+
+export function estadoCto(c) {
+  const total = (c.ports || []).length;
+  const u = UMBRALES[total] || (total <= 8 ? UMBRALES[8] : UMBRALES[16]);
+  const ocupados = contarOcupados(c);
+  if (ocupados >= u.rojo) return 'rojo';
+  if (ocupados >= u.amarillo) return 'amarillo';
+  return 'verde';
+}
+
+const COLORES = { verde: COLOR_VERDE, amarillo: COLOR_AMARILLO, rojo: COLOR_ROJO };
+
 export function colorCto(c) {
-  const libres = contarLibres(c);
-  if (libres === 0) return '#d6402f';
-  if (libres <= 4) return '#f5c400';
-  return null;
+  return COLORES[estadoCto(c)];
 }
 
 export function renderPanel(ctos, selectedId, stateManager, userRole, currentSession) {
