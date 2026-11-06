@@ -2,6 +2,7 @@ import { $, createDefaultPorts } from './config.js';
 import { fetchCtos, insertCto, saveCto, loginUser, getCurrentSession, logoutUser } from './supabase.js';
 import { initMap, renderMarkers } from './map.js';
 import { renderPanel, renderInstallations } from './ui.js';
+import { openNewInstallation, initNewInstallation } from './install.js';
 
 let ctos = {};
 let sel = null;
@@ -58,18 +59,32 @@ async function handleMapClick(e) {
 function setupDrawerAndModal() {
   const isMaster = currentSession?.role === 'maestro';
 
-  if (isMaster) {
-    if ($('menu-btn'))$('menu-btn').style.display = 'inline-block';
+  // El menú ☰ lo ven todos: cualquier técnico puede registrar una instalación.
+  // El reporte de instalaciones sigue siendo solo para el Maestro.
+  if ($('menu-btn')) $('menu-btn').style.display = 'inline-block';
 
-    const toggleDrawer = (open) => {
-      if ($('drawer'))$('drawer').classList.toggle('open', open);
-      if ($('drawer-overlay'))$('drawer-overlay').style.display = open ? 'block' : 'none';
+  const toggleDrawer = (open) => {
+    if ($('drawer'))$('drawer').classList.toggle('open', open);
+    if ($('drawer-overlay'))$('drawer-overlay').style.display = open ? 'block' : 'none';
+  };
+
+  if ($('menu-btn'))$('menu-btn').onclick = () => toggleDrawer(true);
+  if ($('close-drawer'))$('close-drawer').onclick = () => toggleDrawer(false);
+  if ($('drawer-overlay'))$('drawer-overlay').onclick = () => toggleDrawer(false);
+
+  // Nueva instalación (todos los roles)
+  if ($('nav-new-inst')) {
+    $('nav-new-inst').onclick = () => {
+      toggleDrawer(false);
+      openNewInstallation(ctos, currentSession, () => stateManager.refreshUI(), sel);
     };
+  }
+  initNewInstallation();
 
-    if ($('menu-btn'))$('menu-btn').onclick = () => toggleDrawer(true);
-    if ($('close-drawer'))$('close-drawer').onclick = () => toggleDrawer(false);
-    if ($('drawer-overlay'))$('drawer-overlay').onclick = () => toggleDrawer(false);
+  // Reporte de instalaciones (solo Maestro)
+  if ($('nav-inst')) $('nav-inst').style.display = isMaster ? '' : 'none';
 
+  if (isMaster) {
     if ($('nav-inst')) {$('nav-inst').onclick = () => {
         toggleDrawer(false);
         if ($('inst-modal'))$('inst-modal').style.display = 'flex';
@@ -91,8 +106,6 @@ function setupDrawerAndModal() {
         renderInstallations(ctos, $('inst-from').value, $('inst-to').value);
       };
     }
-  } else {
-    if ($('menu-btn'))$('menu-btn').style.display = 'none';
   }
 }
 

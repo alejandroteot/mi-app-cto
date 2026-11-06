@@ -43,8 +43,35 @@
       <button id="close-drawer">✕</button>
     </div>
     <ul class="drawer-menu">
+      <li id="nav-new-inst">🔌 Nueva instalación</li>
       <li id="nav-inst">📋 Instalaciones</li>
     </ul>
+  </div>
+
+  <!-- Modal de Nueva Instalación -->
+  <div id="new-inst-modal" class="modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Nueva instalación</h3>
+        <button id="ni-close">✕</button>
+      </div>
+      <div class="ni-form">
+        <label>CTO
+          <select id="ni-cto"></select>
+        </label>
+        <label>Puerto libre
+          <select id="ni-port"></select>
+        </label>
+        <label>Cliente / ONT
+          <input type="text" id="ni-client" placeholder="Nombre del cliente o ID de ONT" autocomplete="off">
+        </label>
+        <div id="ni-error" class="ni-error" style="display:none"></div>
+        <div class="ni-actions">
+          <button id="ni-cancel">Cancelar</button>
+          <button id="ni-save">Guardar instalación</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Modal de Reporte de Instalaciones -->

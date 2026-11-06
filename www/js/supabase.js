@@ -48,7 +48,7 @@ export async function insertCto(ctoData) {
 }
 
 export async function saveCto(c) {
-  if (!sb) return;
+  if (!sb) return false;
   const { error } = await sb.from('ctos').update({
     nombre: c.nombre,
     lat: c.lat,
@@ -57,7 +57,11 @@ export async function saveCto(c) {
     notas: c.notas,
     ports: c.ports
   }).eq('id', c.id);
-  if (error) alert(error.message);
+  if (error) {
+    alert(error.message);
+    return false;
+  }
+  return true;
 }
 
 export async function deleteCtoFromDb(id) {
